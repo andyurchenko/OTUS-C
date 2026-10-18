@@ -145,7 +145,7 @@ int main(int const argc, char *argv[]) {
             }
         }
 
-        if (unicode_point <= 0x7FF ) {
+        if (0x7F < unicode_point && unicode_point <= 0x7FF ) {
             data[0] = 0xC0 | (unicode_point >> 6);
             data[1] = 0x80 | (unicode_point & 0x3F);
             const size_t n = fwrite(data, 1, sizeof data, fileOut);
