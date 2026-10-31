@@ -33,41 +33,41 @@
 #define BUFFER_SIZE_INDEX 2
 #define ZERO_SYMBOL 1
 
-typedef struct MemoryStruct {
+typedef struct memory_struct {
     unsigned char *memory_block;
     size_t byte_position; // Starting at 0 position
     size_t cur_limit;     // Current limit of bytes available to write into
     size_t max_limit;     // Max limit for the memory in bytes
-} CurlBuffer;
+} curl_buffer;
 
 typedef struct {
     const char *name;
     char *value;
-} NamedValue;
+} named_value;
 
 typedef struct {
-    NamedValue temp_C;
-    NamedValue feels_like_C;
-    NamedValue humidity;
-    NamedValue pressure;
-    NamedValue precip_mm;
-    NamedValue cloud_cover;
-    NamedValue wind_dir;
-    NamedValue wind_speed_kmph;
-    NamedValue weather_desc;
-    NamedValue observation_time;
-    NamedValue country;
-    NamedValue city;
-} CurrentWeatherInfo;
+    named_value temp_c;
+    named_value feels_like_c;
+    named_value humidity;
+    named_value pressure;
+    named_value precip_mm;
+    named_value cloud_cover;
+    named_value wind_dir;
+    named_value wind_speed_kmph;
+    named_value weather_desc;
+    named_value observation_time;
+    named_value country;
+    named_value city;
+} current_weather_info;
 
 static size_t process_curl_response(const char *buffer_read_from, size_t element_size, size_t elements_number, void *buffer_write_to);
 static int parse_size_t(const char * s, size_t* out);
 static int construct_weather_service_address(const char *city_name, unsigned char **out);
-static CurrentWeatherInfo *create_current_weather_struct(void);
-static int fill_struct_with_data_from_json(CurrentWeatherInfo *info, const cJSON *json);
+static current_weather_info *create_current_weather_struct(void);
+static int fill_struct_with_data_from_json(current_weather_info *info, const cJSON *json);
 static char * get_object_string_field(const cJSON * object_field);
-static void print_weather_info(const CurrentWeatherInfo *info);
-static void print_if_set(const NamedValue *nv);
+static void print_weather_info(const current_weather_info *info);
+static void print_if_set(const named_value *nv);
 static void print_error(const char *);
 
 int main(const int argc, char *argv[]) {
@@ -86,7 +86,7 @@ int main(const int argc, char *argv[]) {
     CURL *curl = NULL;
     CURLcode curl_code = 0;
     cJSON *json_full_answer = NULL;
-    CurrentWeatherInfo *current_weather_info = NULL;
+    current_weather_info *current_weather_info = NULL;
     unsigned char *weather_service_url = NULL;
 
     curl = curl_easy_init();
@@ -103,7 +103,7 @@ int main(const int argc, char *argv[]) {
         }
     }
 
-    CurlBuffer buf = {
+    curl_buffer buf = {
         .memory_block = NULL,
         .byte_position = 0,
         .cur_limit = 0,
@@ -187,7 +187,7 @@ static size_t process_curl_response(const char *buffer_read_from, const size_t e
         return 0;
     }
 
-    CurlBuffer *buf = buffer_write_to;
+    curl_buffer *buf = buffer_write_to;
     /*
         Переменная byte_position в структуре MemoryStruct всегда указывает на следующий свободный для записи байт.
         Минимальное количество байт(min_bytes_capacity) - это старые данные + новые данные,
@@ -301,14 +301,14 @@ static void print_error(const char *s) {
     fprintf(stderr, "File name: %s. Line number: %d\n", __FILE__, __LINE__);
 }
 
-static CurrentWeatherInfo * create_current_weather_struct(void) {
-    CurrentWeatherInfo *info = malloc(sizeof (CurrentWeatherInfo));
+static current_weather_info * create_current_weather_struct(void) {
+    current_weather_info *info = malloc(sizeof (current_weather_info));
     if (!info) {
         return NULL;
     }
-    memset(info, 0, sizeof(CurrentWeatherInfo));
-    info->temp_C.name              = "Температура: ";
-    info->feels_like_C.name        = "Ощущается как: ";
+    memset(info, 0, sizeof(current_weather_info));
+    info->temp_c.name              = "Температура: ";
+    info->feels_like_c.name        = "Ощущается как: ";
     info->humidity.name            = "Влажность: ";
     info->pressure.name            = "Давление: ";
     info->precip_mm.name           = "Осадки (мм): ";
@@ -323,9 +323,9 @@ static CurrentWeatherInfo * create_current_weather_struct(void) {
     return info;
 }
 
-static void print_weather_info(const CurrentWeatherInfo * const info) {
-    print_if_set(&info->temp_C);
-    print_if_set(&info->feels_like_C);
+static void print_weather_info(const current_weather_info * const info) {
+    print_if_set(&info->temp_c);
+    print_if_set(&info->feels_like_c);
     print_if_set(&info->humidity);
     print_if_set(&info->pressure);
     print_if_set(&info->precip_mm);
@@ -338,13 +338,13 @@ static void print_weather_info(const CurrentWeatherInfo * const info) {
     print_if_set(&info->city);
 }
 
-static void print_if_set(const NamedValue * const nv) {
+static void print_if_set(const named_value * const nv) {
     if (nv->name && nv->value) {
         printf("%s%s\n", nv->name, nv->value);
     }
 }
 
-static int fill_struct_with_data_from_json(CurrentWeatherInfo * const info, const cJSON * const json) {
+static int fill_struct_with_data_from_json(current_weather_info * const info, const cJSON * const json) {
     const cJSON *json_current_condition_array = cJSON_GetObjectItem(json, "current_condition");
     if (!cJSON_IsArray(json_current_condition_array)) {
         print_error("There is no `current_condition` array in JSON answer.");
@@ -362,10 +362,10 @@ static int fill_struct_with_data_from_json(CurrentWeatherInfo * const info, cons
     }
 
     cJSON *object_field = cJSON_GetObjectItem(json_current_condition_obj, "temp_C");
-    info->temp_C.value = get_object_string_field(object_field);
+    info->temp_c.value = get_object_string_field(object_field);
 
     object_field = cJSON_GetObjectItem(json_current_condition_obj, "FeelsLikeC");
-    info->feels_like_C.value = get_object_string_field(object_field);
+    info->feels_like_c.value = get_object_string_field(object_field);
 
     object_field = cJSON_GetObjectItem(json_current_condition_obj, "humidity");
     info->humidity.value = get_object_string_field(object_field);
