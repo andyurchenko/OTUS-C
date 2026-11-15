@@ -7,10 +7,10 @@
 #include "error.h"
 
 static bool parity(int64_t number);
-static error_status extract_odds(const node_list *src_list, node_list *dest_list);
+static void extract_odds(const node * src_node, node *dest_node, bool (*callback)(int64_t));
 static void print_int(int64_t number);
-static void print_list_forward(const node_list *list);
-static void print_list_backward(const node_list *list);
+static void print_list_forward(const node *node, void (*callback)(int64_t));
+static void print_list_backward(const node *node, void (*callback)(int64_t));
 
 int main(void) {
     const int64_t arr[6] = {4, 8, 15, 16, 23, 42};
@@ -29,7 +29,7 @@ int main(void) {
             return EXIT_FAILURE;
         }
     }
-    print_list_forward(list);
+    print_list_forward(list->head, print_int);
 
     node_list *odd_list = list_create();
     if (odd_list == NULL) {
@@ -37,9 +37,8 @@ int main(void) {
         return EXIT_FAILURE;
     }
 
-    if (extract_odds(list, odd_list) == OK) {
-        print_list_backward(odd_list);
-    }
+    extract_odds(list->head->next_node, odd_list->head, parity);
+    print_list_backward(odd_list->tail, print_int);
 
     list_destroy(&list);
     list_destroy(&odd_list);
@@ -47,34 +46,30 @@ int main(void) {
     return EXIT_SUCCESS;
 }
 
-static void print_list_forward(const node_list *list) {
-    if (list == NULL || list->head) {
+static void print_list_forward(const node *node, void (*callback)(int64_t)) {
+    if (node == NULL) {
+        printf("\n");
         return;
     }
 
-    const node *n = list->head->next_node;
-    while (n) {
-        if (n->value) {
-            print_int(*(int64_t*)n->value);
-        }
-        n = n->next_node;
+    if (node->value) {
+        callback(*(int64_t*)node->value);
     }
-    printf("\n");
+
+    print_list_forward(node->next_node, callback);
 }
 
-static void print_list_backward(const node_list *list) {
-    if (list == NULL || list->head) {
+static void print_list_backward(const node *node, void (*callback)(int64_t)) {
+    if (node == NULL) {
+        printf("\n");
         return;
     }
 
-    const node *n = list->tail->prev_node;
-    while (n) {
-        if (n->value) {
-            print_int(*(int64_t*)n->value);
-        }
-        n = n->prev_node;
+    if (node->value) {
+        callback(*(int64_t*)node->value);
     }
-    printf("\n");
+
+    print_list_backward(node->prev_node, callback);
 }
 
 static bool parity(const int64_t number) {
@@ -86,35 +81,39 @@ static void print_int(const int64_t number) {
     fflush(NULL);
 }
 
-static error_status extract_odds(const node_list * const src_list, node_list *dest_list) {
-    if (src_list == NULL) {
-        PRINT_ERROR("Source list is null");
-        return LIST_ERR_INVALID_ARG;
+static node *add_element(const void * const src_v, node * const n) {
+    node *new_node = malloc(sizeof *new_node);
+    if (new_node == NULL) {
+        PRINT_ERROR("Cannot create a new node for a list.");
+        return NULL;
     }
 
-    if (dest_list == NULL) {
-        PRINT_ERROR("Destination list is null");
-        return LIST_ERR_INVALID_ARG;
+    int64_t *dest_v = malloc(sizeof *dest_v);
+    if (new_node == NULL) {
+        PRINT_ERROR("Allocation memory for a new node value failed.");
+        return NULL;
     }
 
-    if (src_list->head == NULL || src_list->head->next_node == NULL) {
-        PRINT_ERROR("Source list has an invalid head node.");
-        return LIST_ERR_INVALID_NODE;
-    }
+    *dest_v = *(int64_t*)src_v;
+    new_node->value = dest_v;
+    node *tail = n->next_node;
+    n->next_node = new_node;
+    new_node->prev_node = n;
+    new_node->next_node = tail;
+    tail->prev_node = new_node;
 
-    const node *src_node = src_list->head->next_node;
-    while (src_node && src_node != src_list->tail) {
-        if (src_node->value && parity(*(int64_t*)src_node->value)) {
-            int64_t *v = malloc(sizeof(*v));
-            if (v == NULL) {
-                PRINT_ERROR("Allocation memory for a new node value failed.");
-                return MEMORY_ALLOCATION_ERROR;
-            }
-            *v = *(int64_t*)src_node->value;
-            list_push(dest_list, v);
-        }
-        src_node = src_node->next_node;
-    }
-
-    return OK;
+    return new_node;
 }
+
+static void extract_odds(const node * const src_node, node *dest_node, bool (*callback)(int64_t)) {
+    if (src_node == NULL || src_node->value == NULL) {
+        return;
+    }
+
+    if (callback(*(int64_t*)src_node->value)) {
+        dest_node = add_element(src_node->value, dest_node);
+    }
+
+    extract_odds(src_node->next_node, dest_node, callback);
+}
+
